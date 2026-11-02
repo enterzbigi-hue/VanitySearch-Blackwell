@@ -69,7 +69,7 @@ Przy zagadkach o numerach podzielnych przez 5 klucz publiczny jest znany. Okno p
 
 Potrzebny jest Python 3 z tkinter (instalator z python.org ma go w zestawie). Dodatkowe pakiety nie są potrzebne.
 
-1. **VanitySearch.exe:** pobierz gotowy plik dla swojej karty z zakładki [Releases](../../../releases)
+1. **VanitySearch.exe:** pobierz gotowy plik dla swojej karty z zakładki [Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases)
    i zapisz go w tym folderze jako `VanitySearch.exe`:
 
    | Karta | Plik |
@@ -145,7 +145,7 @@ BTC: `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med` (QR code above)
 ### Install (Windows)
 
 Python 3 with tkinter is all you need. Download the `vanitysearch-smXX.exe` for your GPU from
-[Releases](../../../releases) (sm86 = RTX 30, sm89 = RTX 40, sm120 = RTX 50), save it next to the scripts as
+[Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases) (sm86 = RTX 30, sm89 = RTX 40, sm120 = RTX 50), save it next to the scripts as
 `VanitySearch.exe`, run the self-test from step 2 above, then double-click `szukacz_puzzle_gui.pyw`.
 
 ### Honest odds and a warning
