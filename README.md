@@ -2,8 +2,8 @@
 
 ## Bitcoin Puzzle Hunter: a GUI for VanitySearch
 
-**This fork adds [a Windows GUI for the Bitcoin puzzle](gui/README.md)** and
-**[prebuilt .exe files](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases)** for RTX 30/40/50.
+**This fork adds [a Windows GUI for the Bitcoin puzzle](gui/README.md)** and a
+**[ready-to-run Windows download](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases)** for RTX 30/40/50: unzip and double-click `PuzzleHunter.exe`, no Python needed.
 Pick any unsolved puzzle 71–160, or your own range and addresses, press Start, and watch your GPU work.
 10 languages, parallel prize check, and it stops by itself when the prize is gone.
 

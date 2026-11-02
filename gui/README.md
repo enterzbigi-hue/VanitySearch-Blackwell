@@ -67,7 +67,9 @@ Przy zagadkach o numerach podzielnych przez 5 klucz publiczny jest znany. Okno p
 
 ### Instalacja (Windows)
 
-Potrzebny jest Python 3 z tkinter (instalator z python.org ma go w zestawie). Dodatkowe pakiety nie są potrzebne.
+**Najprościej:** pobierz z [Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases) paczkę `PuzzleHunter-RTX30.zip`, `-RTX40.zip` albo `-RTX50.zip`, rozpakuj ją i uruchom `PuzzleHunter.exe`. Pythona nie trzeba instalować. Okno jest w `PuzzleHunter.exe`, a silnik w osobnym `VanitySearch.exe` obok, który okno uruchamia samo. Znaleziony klucz trafia do `znalezione.txt` w tym samym folderze.
+
+Wersja ze źródeł wymaga Pythona 3 z tkinter (instalator z python.org ma go w zestawie). Dodatkowe pakiety nie są potrzebne.
 
 1. **VanitySearch.exe:** pobierz gotowy plik dla swojej karty z zakładki [Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases)
    i zapisz go w tym folderze jako `VanitySearch.exe`:
@@ -144,7 +146,7 @@ BTC: `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med` (QR code above)
 
 ### Install (Windows)
 
-Python 3 with tkinter is all you need. Download the `vanitysearch-smXX.exe` for your GPU from
+**Easiest:** download `PuzzleHunter-RTX30/40/50.zip` from [Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases), unzip and run `PuzzleHunter.exe`. No Python needed. The window is `PuzzleHunter.exe`; the engine is the separate `VanitySearch.exe` next to it, which the window starts for you. A found key goes to `znalezione.txt` in that folder. From source, Python 3 with tkinter is all you need. Download the `vanitysearch-smXX.exe` for your GPU from
 [Releases](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases) (sm86 = RTX 30, sm89 = RTX 40, sm120 = RTX 50), save it next to the scripts as
 `VanitySearch.exe`, run the self-test from step 2 above, then double-click `szukacz_puzzle_gui.pyw`.
 

@@ -25,7 +25,8 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+# Jako PuzzleHunter.exe (PyInstaller) pliki, bazy i ustawienia leżą obok .exe, a nie w katalogu tymczasowym
+HERE = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
 os.chdir(HERE)
 sys.path.insert(0, HERE)
 import jezyki                  # noqa: E402  (tłumaczenia okna)
