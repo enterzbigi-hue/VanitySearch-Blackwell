@@ -16,3 +16,7 @@ __pycache__/
 VSbackup_*.dat
 VSbackup_*.dat.prev
 VSbackup_*.dat.tmp
+# szukacz puzzle (gui/): wyniki, bazy i ustawienia zostają tylko lokalnie
+znalezione.txt
+checked_ranges*.json*
+szukacz_gui.json

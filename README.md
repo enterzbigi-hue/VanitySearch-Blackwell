@@ -1,5 +1,12 @@
 # VanitySearch-Blackwell
 
+> **This fork adds [a GUI for the Bitcoin puzzle](gui/README.md)** (10 languages, every unsolved puzzle 71–160,
+> parallel prize check) and **prebuilt Windows binaries** for RTX 30/40/50 on the Releases page.
+> The search engine below is StarWWW's VanitySearch-Blackwell, unchanged.
+> Donations (BTC): `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med`
+>
+> ![GUI](gui/screenshot_szukanie.png)
+
 Based on [FixedPaul/VanitySearch-Bitcrack](https://github.com/FixedPaul/VanitySearch-Bitcrack),
 which is in turn based on [Jean-Luc Pons' VanitySearch](https://github.com/JeanLucPons/VanitySearch). It is
 tuned for NVIDIA Blackwell GPUs (sm_120) through profiling.
