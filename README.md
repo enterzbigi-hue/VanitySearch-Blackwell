@@ -1,11 +1,57 @@
-# VanitySearch-Blackwell
+# VanitySearch-Blackwell + Bitcoin Puzzle Hunter
 
-> **This fork adds [a GUI for the Bitcoin puzzle](gui/README.md)** (10 languages, every unsolved puzzle 71–160,
-> parallel prize check) and **prebuilt Windows binaries** for RTX 30/40/50 on the Releases page.
-> The search engine below is StarWWW's VanitySearch-Blackwell, unchanged.
-> Donations (BTC): `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med`
->
-> ![GUI](gui/screenshot_szukanie.png)
+## Bitcoin Puzzle Hunter: a GUI for VanitySearch
+
+**This fork adds [a Windows GUI for the Bitcoin puzzle](gui/README.md)** and
+**[prebuilt .exe files](https://github.com/enterzbigi-hue/VanitySearch-Blackwell/releases)** for RTX 30/40/50.
+Pick any unsolved puzzle 71–160, or your own range and addresses, press Start, and watch your GPU work.
+10 languages, parallel prize check, and it stops by itself when the prize is gone.
+
+![Puzzle Hunter GUI](gui/screenshot_search.png)
+
+### A few words from me
+
+Hi! I build this in my spare time on an ordinary home PC. I have no mining farm and no server room,
+just one graphics card and a loan I pay off every month. The Bitcoin puzzle is how I learn and have fun,
+and I share the tool I made for it for free. The code is open: use it, change it, and check that it does
+nothing behind your back.
+
+If the GUI is useful to you and you'd like to and can afford it, any small donation helps me put money
+toward better hardware and find more time to keep working on it. If not, that's fine too: a ⭐ on GitHub
+really keeps me going. 🙂
+
+Just one request: **please don't donate money you need.** The chance of finding a key is tiny.
+This is a hobby, not an investment.
+
+<img src="gui/donate_qr.png" alt="QR: bitcoin:bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med" width="160">
+
+**BTC:** `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med`
+
+<details>
+<summary>🇵🇱 Kilka słów ode mnie (po polsku)</summary>
+
+Cześć! Ten program powstaje po godzinach, na zwykłym domowym komputerze. Nie mam farmy koparek ani serwerowni,
+tylko jedną kartę graficzną i kredyt, który co miesiąc trzeba spłacić. Zagadki Bitcoina to dla mnie nauka
+i frajda, a narzędziem, które sobie do nich zrobiłem, dzielę się za darmo. Kod jest otwarty: możesz go używać,
+zmieniać i sprawdzić, że nie robi nic za Twoimi plecami.
+
+Jeśli okno Ci się przydało, a masz ochotę i możliwość, każda drobna wpłata pomoże mi dołożyć do lepszego
+sprzętu i znaleźć więcej czasu na dalszy rozwój. Jeśli nie, to też w porządku: zostaw ⭐ na GitHubie,
+to naprawdę motywuje. 🙂
+
+Proszę tylko o jedno: **nie wpłacaj pieniędzy, których potrzebujesz.** Szansa na znalezienie klucza jest
+bardzo mała. To hobby, a nie inwestycja.
+</details>
+
+| Own range and addresses | Puzzle with a known public key |
+|---|---|
+| ![Own range](gui/screenshot_custom.png) | ![Puzzle #140](gui/screenshot_puzzle140.png) |
+
+**[→ Full GUI description, install steps and honest odds](gui/README.md)**
+
+---
+
+## VanitySearch-Blackwell (the search engine, by StarWWW)
 
 Based on [FixedPaul/VanitySearch-Bitcrack](https://github.com/FixedPaul/VanitySearch-Bitcrack),
 which is in turn based on [Jean-Luc Pons' VanitySearch](https://github.com/JeanLucPons/VanitySearch). It is

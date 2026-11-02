@@ -2,7 +2,7 @@
 
 **[Polski](#polski)** · **[English](#english)**
 
-![Szukanie puzzle #71](screenshot_szukanie.png)
+![Puzzle Hunter](screenshot_search.png)
 
 ---
 
@@ -56,9 +56,9 @@ bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med
 - **Na żywo:** prędkość, postęp paczki, czas do końca, liczba sprawdzonych kluczy i jaka to część zakresu.
 - **Bezpieczeństwo:** znaleziony klucz trafia wyłącznie do `znalezione.txt`, nigdy do dziennika w oknie.
 
-| English | 中文 |
+| Własny zakres i adresy | 中文 |
 |---|---|
-| ![English](screenshot_english.png) | ![中文](screenshot_chinese.png) |
+| ![Own range](screenshot_custom.png) | ![中文](screenshot_chinese.png) |
 
 Przy zagadkach o numerach podzielnych przez 5 klucz publiczny jest znany. Okno przypomina wtedy,
 że metody Kangaroo/BSGS są tam nieporównanie szybsze niż szukanie po adresie:
