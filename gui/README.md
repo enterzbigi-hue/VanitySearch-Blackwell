@@ -40,6 +40,12 @@ bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med
   `08389f34…cd15` z 2015 roku (wyjście nr N to zagadka nr N), więc nie ma w nich literówek.
   Klucz zagadki nr N leży w zakresie **2^(N-1) … 2^N − 1** i tylko tam program szuka.
   Przycisk „Odśwież listę” sprawdza wszystkie 160 adresów i usuwa z listy zagadki, które ktoś już rozwiązał.
+- **Własny zakres i własne adresy.** Przełącz na „Własny zakres i adresy”, wpisz początek i koniec zakresu (hex)
+  i wklej adresy (1… albo bc1q…) albo wczytaj je z pliku `.txt`. Nieprawidłowe adresy program pomija, przy wielu
+  adresach używa listy VanitySearch (`-i`). Zakres nie musi być potęgą dwójki. Każda kombinacja zakresu i adresów
+  ma własną bazę `checked_custom_….json`.
+- **Gdzie są adresy zagadek:** w pliku [`puzzle_list.py`](puzzle_list.py) (słownik `ADDRESSES`), wygenerowanym
+  z oryginalnej transakcji. Twoje własne adresy zapisują się w ustawieniach `szukacz_gui.json`.
 - **Losowe paczki od 2^32 do 2^46 kluczy.** Rozmiar zmieniasz w trakcie pracy. Paczka jest zawsze wyrównana
   do swojego rozmiaru, a paczki różnej wielkości nigdy nie nachodzą na już sprawdzone fragmenty.
 - **Osobna baza dla każdej zagadki** (`checked_ranges_N.json`, dla #71 `checked_ranges.json`). Zapis jest atomowy.
@@ -127,6 +133,9 @@ BTC: `bc1q73ehm20v8y0zlfc5qh9mqzzftmczp3yg0f6med` (QR code above)
 - **Any unsolved puzzle 71–160.** Addresses come straight from the original 2015 puzzle transaction.
   Puzzle N is searched only inside **2^(N-1) … 2^N − 1**. "Refresh list" checks all 160 addresses and
   hides solved puzzles.
+- **Own range and addresses:** enter any start/end (hex) and paste addresses (1… or bc1q…) or load them from a
+  `.txt` file. Invalid ones are skipped, several addresses use VanitySearch's `-i` list. Built-in puzzle addresses
+  live in [`puzzle_list.py`](puzzle_list.py).
 - **Random aligned chunks of 2^32–2^46 keys**, resizable while running, with a per-puzzle database of searched
   chunks, so mixed sizes never overlap.
 - **Parallel prize check** through your own Bitcoin Core node (`scantxoutset`, works with prune),

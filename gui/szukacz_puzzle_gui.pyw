@@ -10,6 +10,7 @@ Okienkowa wersja szukacza Bitcoin puzzle (wszystkie nierozwiązane zagadki 71-16
 Uruchomienie: dwuklik na pliku albo  pythonw szukacz_puzzle_gui.pyw [--start]
 """
 
+import hashlib
 import json
 import math
 import os
@@ -35,8 +36,12 @@ SETTINGS_FILE = "szukacz_gui.json"
 DEFAULTS = {
     "exe": core.EXE_PATH,
     "lang": "pl",
+    "mode": "builtin",          # builtin (zagadki 71-160) | custom (własny zakres i adresy)
     "puzzle": 71,
     "unsolved": pz.UNSOLVED_AT_RELEASE,
+    "custom_from": "",          # hex
+    "custom_to": "",            # hex
+    "custom_addrs": [],
     "source": "node",           # node | blockchain | mempool
     "interval_min": 10,
     "bits": core.RANGE_BITS,    # rozmiar paczki: 2^bits kluczy
@@ -47,6 +52,20 @@ SOURCE_KEYS = ["node", "blockchain", "mempool"]
 MIN_BITS, MAX_BITS = 32, 46
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 MAX_FAILS_IN_ROW = 3
+CUSTOM_ADDR_FILE = "wlasne_adresy.txt"      # lista dla VanitySearch -i, gdy adresów jest więcej niż jeden
+API_ADDR_LIMIT = {"blockchain": 100, "mempool": 10}   # powyżej - saldo tylko z własnego węzła
+ADDR_RE = re.compile(r"^(1[1-9A-HJ-NP-Za-km-z]{25,34}|bc1q[02-9ac-hj-np-z]{38})$")   # P2PKH i P2WPKH
+
+
+def parse_custom(frm, to, addrs):
+    """Własny cel -> (lo, hi, poprawne adresy, liczba odrzuconych) albo ValueError."""
+    lo, hi = int(frm.strip().lower().removeprefix("0x"), 16), int(to.strip().lower().removeprefix("0x"), 16)
+    if not 0 < lo < hi < 1 << 256:
+        raise ValueError("range")
+    good = list(dict.fromkeys(a for a in addrs if ADDR_RE.match(a)))
+    if not good:
+        raise ValueError("addrs")
+    return lo, hi, good, len([a for a in addrs if a]) - len(good)
 
 PROGRESS_RE = re.compile(r"([\d.]+) MK/s - (\d+) BKeys - 2\^([\d.]+) \[([\d.]+)%\]")
 END_RE = re.compile(r"END: (\d\d:\d\d:\d\d)")
@@ -108,8 +127,8 @@ class App:
         self.last_speed = None
 
         root.configure(bg=BG)
-        root.geometry("960x810")
-        root.minsize(840, 680)
+        root.geometry("960x890")
+        root.minsize(840, 760)
         self._styles()
         self._build()
         self._apply_puzzle()
@@ -142,7 +161,7 @@ class App:
         """Zapisuje ustawienia i odświeża ich kopię czytaną przez wątki (tkinter nie jest wielowątkowy)."""
         self.settings.update(exe=self.v_exe.get(), source=self.v_source.get(),
                              interval_min=self._interval(), bits=int(self.v_bits.get()))
-        self.snap = dict(self.settings)
+        self.snap = dict(self.settings, tgt=self.target())
         try:
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.settings, f, indent=2, ensure_ascii=False)
@@ -158,6 +177,20 @@ class App:
     @property
     def puzzle(self):
         return int(self.settings["puzzle"])
+
+    def target(self):
+        """Bieżący cel jako słownik (zagadka albo własny zakres) albo None, gdy własny cel jest niepoprawny."""
+        if self.settings["mode"] == "builtin":
+            n = self.puzzle
+            lo, hi = pz.key_range(n)
+            return dict(id=f"p{n}", n=n, addrs=[pz.ADDRESSES[n]], lo=lo, hi=hi, db=core.db_file_for(n))
+        try:
+            lo, hi, addrs, _ = parse_custom(self.settings["custom_from"], self.settings["custom_to"],
+                                            self.settings["custom_addrs"])
+        except ValueError:
+            return None
+        h = hashlib.sha1(f"{lo:x}-{hi:x}-{','.join(sorted(addrs))}".encode()).hexdigest()[:10]
+        return dict(id=f"c{h}", n=None, addrs=addrs, lo=lo, hi=hi, db=f"checked_custom_{h}.json")
 
     # ---------- wygląd
     def _styles(self):
@@ -221,8 +254,50 @@ class App:
         # wybór zagadki
         pc, pb = self._card(self.root, t("card_puzzle"))
         pc.pack(fill="x", padx=18, pady=(0, 6))
-        prow = tk.Frame(pb, bg=CARD)
-        prow.pack(fill="x")
+        mrow = tk.Frame(pb, bg=CARD)
+        mrow.pack(fill="x", pady=(0, 6))
+        self.v_mode = tk.StringVar(value=self.settings["mode"])
+        self.rb_modes = []
+        for key in ("builtin", "custom"):
+            rb = tk.Radiobutton(mrow, text=t("mode_" + key), value=key, variable=self.v_mode, command=self._on_mode,
+                                bg=CARD, fg=TEXT, selectcolor=BG, activebackground=CARD, activeforeground=TEXT,
+                                font=(FONT, 10), highlightthickness=0, bd=0)
+            rb.pack(side="left", padx=(0, 16))
+            self.rb_modes.append(rb)
+        self.mode_body = tk.Frame(pb, bg=CARD)
+        self.mode_body.pack(fill="x")
+
+        # --- tryb własny: zakres i adresy
+        self.custom_frame = tk.Frame(self.mode_body, bg=CARD)
+        crow = tk.Frame(self.custom_frame, bg=CARD)
+        crow.pack(fill="x")
+        self.v_cfrom = tk.StringVar(value=self.settings["custom_from"])
+        self.v_cto = tk.StringVar(value=self.settings["custom_to"])
+        for key, var in (("custom_from", self.v_cfrom), ("custom_to", self.v_cto)):
+            self._label(crow, t(key), 9, MUTED).pack(side="left", padx=(0, 4))
+            tk.Entry(crow, textvariable=var, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", width=30,
+                     font=("Consolas", 9), highlightthickness=1, highlightbackground=BORDER,
+                     highlightcolor=ACCENT).pack(side="left", ipady=3, padx=(0, 12))
+        arow = tk.Frame(self.custom_frame, bg=CARD)
+        arow.pack(fill="x", pady=(6, 0))
+        self._label(arow, t("custom_addrs"), 9, MUTED).pack(side="left", anchor="n", padx=(0, 4))
+        self.t_addrs = tk.Text(arow, height=3, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat",
+                               font=("Consolas", 9), highlightthickness=1, highlightbackground=BORDER,
+                               highlightcolor=ACCENT, wrap="none")
+        self.t_addrs.pack(side="left", fill="x", expand=True)
+        self.t_addrs.insert("1.0", "\n".join(self.settings["custom_addrs"]))
+        side = tk.Frame(arow, bg=CARD)
+        side.pack(side="left", padx=(8, 0), anchor="n")
+        b = self._button(side, t("btn_load_file"), self._load_addr_file)
+        b.configure(pady=3)
+        b.pack(fill="x")
+        b = self._button(side, t("btn_apply"), self._apply_custom)
+        b.configure(pady=3)
+        b.pack(fill="x", pady=(4, 0))
+
+        # --- tryb wbudowany: lista zagadek
+        prow = tk.Frame(self.mode_body, bg=CARD)
+        self.builtin_frame = prow
         self.v_puzzle = tk.StringVar()
         self.cb_puzzle = ttk.Combobox(prow, textvariable=self.v_puzzle, state="readonly", style="D.TCombobox",
                                       font=(FONT, 10), width=52, height=20)
@@ -233,6 +308,7 @@ class App:
         self.btn_list.pack(side="left", padx=8)
         self.l_list_info = self._label(prow, "", 9, MUTED)
         self.l_list_info.pack(side="left", padx=4)
+        (self.custom_frame if self.settings["mode"] == "custom" else self.builtin_frame).pack(fill="x")
         self.l_hint = self._label(pb, "", 9, YELLOW, wraplength=880, justify="left")
         self.l_hint.pack(fill="x", pady=(4, 0))
 
@@ -392,26 +468,43 @@ class App:
         self.l_list_info.configure(text=self.t("n_unsolved", n=len(self.settings["unsolved"])))
 
     def _apply_puzzle(self):
-        """Ustawia okno pod wybraną zagadkę: tytuł, adres, zakres, limit rozmiaru paczki, statystyki."""
-        n = self.puzzle
+        """Ustawia okno pod bieżący cel: tytuł, adres, zakres, limit rozmiaru paczki, statystyki."""
         self._fill_puzzle_list()
-        self.root.title(self.t("title", n=n))
-        self.l_title.configure(text=self.t("title", n=n))
-        self.l_addr.configure(text=pz.ADDRESSES[n], fg=TEXT)
+        tgt = self.target()
         self.l_balance.configure(text="— BTC", fg=ACCENT)
         self.l_bal_info.configure(text=self.t("bal_unknown"), fg=MUTED)
-        self.l_zakres.configure(text=self.t("range_info", n=n, a=n - 1, b=n, db=os.path.basename(core.db_file_for(n))))
-        self.l_hint.configure(text=self.t("hint_pubkey") if pz.pubkey_known(n) else "", fg=YELLOW)
-        top = min(MAX_BITS, n - 1)
+        if self.settings["mode"] == "builtin":
+            n = tgt["n"]
+            title = self.t("title", n=n)
+            self.l_addr.configure(text=tgt["addrs"][0], fg=TEXT)
+            self.l_zakres.configure(text=self.t("range_info", n=n, a=n - 1, b=n, db=os.path.basename(tgt["db"])))
+            self.l_hint.configure(text=self.t("hint_pubkey") if pz.pubkey_known(n) else "", fg=YELLOW)
+        else:
+            title = self.t("custom_title")
+            if tgt:
+                more = f"  (+{len(tgt['addrs']) - 1})" if len(tgt["addrs"]) > 1 else ""
+                self.l_addr.configure(text=tgt["addrs"][0] + more, fg=TEXT)
+                self.l_zakres.configure(text=self.t("custom_info", a=f"{tgt['lo']:X}", b=f"{tgt['hi']:X}",
+                                                    k=f"{math.log2(tgt['hi'] - tgt['lo'] + 1):.2f}",
+                                                    n=len(tgt["addrs"]), db=tgt["db"]))
+                self.l_hint.configure(text="", fg=YELLOW)
+            else:
+                self.l_addr.configure(text="-", fg=MUTED)
+                self.l_zakres.configure(text="")
+                self.l_hint.configure(text=self.t("custom_needed"), fg=YELLOW)
+        self.root.title(title)
+        self.l_title.configure(text=title)
+        span_bits = (tgt["hi"] - tgt["lo"] + 1).bit_length() - 1 if tgt else MAX_BITS
+        top = max(1, min(MAX_BITS, span_bits))
         cur = int(self.v_bits.get())
-        self.sp_bits.configure(values=[str(b) for b in range(MIN_BITS, top + 1)])   # Tk ustawia wtedy 1. wartość
+        self.sp_bits.configure(values=[str(b) for b in range(min(MIN_BITS, top), top + 1)])  # Tk ustawia wtedy 1. wartość
         self.v_bits.set(str(min(cur, top)))
         self.l_range.configure(text=f"{self.t('from')}: -\n{self.t('to')}: -")
         self.pb["value"] = 0
         self.l_prog.configure(text="0.00 %")
         self.l_eta.configure(text="—")
-        self._refresh_db_count()
         self._save_settings()
+        self._refresh_db_count()
         self._update_bits_info()
         if not self.running:
             self._set_state("idle")
@@ -428,16 +521,66 @@ class App:
         self._apply_puzzle()
         self.log(self.t("log_picked", n=n, a=n - 1, b=n, addr=pz.ADDRESSES[n]), "acc")
 
+    def _on_mode(self):
+        mode = self.v_mode.get()
+        if mode == self.settings["mode"]:
+            return
+        if self.running:
+            self.v_mode.set(self.settings["mode"])
+            messagebox.showinfo(self.t("busy_title"), self.t("busy_switch"))
+            return
+        self.settings["mode"] = mode
+        self.builtin_frame.pack_forget()
+        self.custom_frame.pack_forget()
+        (self.custom_frame if mode == "custom" else self.builtin_frame).pack(fill="x")
+        self._apply_puzzle()
+
+    def _load_addr_file(self):
+        p = filedialog.askopenfilename(initialdir=HERE, filetypes=[("txt", "*.txt"), ("*", "*.*")])
+        if not p:
+            return
+        with open(p, encoding="utf-8-sig", errors="ignore") as f:
+            self.t_addrs.delete("1.0", "end")
+            self.t_addrs.insert("1.0", f.read())
+        self._apply_custom()
+
+    def _apply_custom(self):
+        """Sprawdza i zapisuje własny zakres oraz adresy."""
+        if self.running:
+            messagebox.showinfo(self.t("busy_title"), self.t("busy_switch"))
+            return
+        addrs = [ln.strip() for ln in self.t_addrs.get("1.0", "end").splitlines() if ln.strip()]
+        try:
+            lo, hi, good, bad = parse_custom(self.v_cfrom.get(), self.v_cto.get(), addrs)
+        except ValueError as e:
+            messagebox.showerror(self.t("err_title"), self.t("err_addrs" if str(e) == "addrs" else "err_range"))
+            return
+        self.settings.update(custom_from=f"{lo:X}", custom_to=f"{hi:X}", custom_addrs=good)
+        self.v_cfrom.set(f"{lo:X}")
+        self.v_cto.set(f"{hi:X}")
+        self.t_addrs.delete("1.0", "end")
+        self.t_addrs.insert("1.0", "\n".join(good))
+        if bad:
+            self.log(self.t("bad_addr", n=bad), "warn")
+        self._apply_puzzle()
+        self.log(self.t("log_custom", a=f"{lo:X}", b=f"{hi:X}", n=len(good)), "acc")
+
     def _refresh_db_count(self, checked=None):
+        tgt = self.snap.get("tgt")
+        if not tgt:
+            for w in (self.l_chunks, self.l_keys):
+                w.configure(text="0")
+            self.l_share.configure(text="0 %")
+            return
         if checked is None:
             try:
-                checked = core.load_db(core.db_file_for(self.puzzle))
+                checked = core.load_db(tgt["db"])
             except SystemExit:
                 checked = set()
         keys = core.checked_keys(checked)
         self.l_chunks.configure(text=f"{len(checked):,}".replace(",", " "))
         self.l_keys.configure(text=f"2^{math.log2(keys):.2f}" if keys else "0")
-        share = keys / (1 << (self.puzzle - 1)) * 100
+        share = keys / (tgt["hi"] - tgt["lo"] + 1) * 100
         self.l_share.configure(text=f"{share:.6f} %" if share >= 1e-4 or not keys else f"{share:.2e} %")
 
     def _on_bits(self):
@@ -466,6 +609,8 @@ class App:
         self.btn_stop.configure(state="normal" if self.running else "disabled",
                                 bg=RED if self.running else BORDER, disabledforeground=MUTED)
         self.cb_puzzle.configure(state="disabled" if self.running else "readonly")
+        for rb in self.rb_modes:
+            rb.configure(state="disabled" if self.running else "normal")
 
     # ---------- start / stop
     def start(self):
@@ -475,14 +620,25 @@ class App:
         if not os.path.exists(self.v_exe.get()):
             messagebox.showerror(self.t("no_exe_title"), self.t("no_exe", p=self.v_exe.get()))
             return
+        tgt = self.snap["tgt"]
+        if not tgt:
+            messagebox.showerror(self.t("err_title"), self.t("custom_needed"))
+            return
+        addr_file = None
+        if len(tgt["addrs"]) > 1:                 # wiele adresów -> lista dla VanitySearch -i
+            addr_file = os.path.abspath(CUSTOM_ADDR_FILE)
+            with open(addr_file, "w", encoding="utf-8") as f:
+                f.write("\n".join(tgt["addrs"]) + "\n")
         self.running = True
         # Nowe zdarzenie na każdy start: wątki z poprzedniego startu na pewno się zakończą
         ev = self.stop_evt = threading.Event()
         self._set_state("run")
-        n = self.puzzle
-        self.log(self.t("log_start", n=n, m=self._interval(), src=self.src_name(self.v_source.get())), "acc")
-        lo, hi = pz.key_range(n)
-        cfg = dict(self.snap, addr=pz.ADDRESSES[n], lo=lo, hi=hi, db=core.db_file_for(n), n=n)
+        src = self.src_name(self.v_source.get())
+        if tgt["n"]:
+            self.log(self.t("log_start", n=tgt["n"], m=self._interval(), src=src), "acc")
+        else:
+            self.log(self.t("log_start_custom", k=len(tgt["addrs"]), m=self._interval(), src=src), "acc")
+        cfg = dict(self.snap, **tgt, addr_file=addr_file)
         threading.Thread(target=self._search_loop, args=(ev, cfg), daemon=True).start()
         threading.Thread(target=self._balance_loop, args=(ev,), daemon=True).start()
 
@@ -517,15 +673,21 @@ class App:
             return
         fails = 0
         while not ev.is_set():
-            bits = min(self.snap["bits"], cfg["n"] - 1)    # zmiana rozmiaru działa od następnej paczki
+            span = cfg["hi"] - cfg["lo"]
+            bits = max(1, min(self.snap["bits"], (span + 1).bit_length() - 1))  # zmiana działa od następnej paczki
             try:
-                start = core.get_random_start(checked, bits, cfg["lo"], cfg["hi"])
+                if cfg["n"]:      # zagadka: 2^(n-1) jest wyrównane do każdej paczki, zapisujemy starty
+                    start = key = core.get_random_start(checked, bits, cfg["lo"], cfg["hi"])
+                else:             # własny zakres: paczki liczone od lo, zapisujemy przesunięcia
+                    key = core.get_random_start(checked, bits, 0, span)
+                    start = cfg["lo"] + key
             except Exception:  # noqa: BLE001  (cały zakres sprawdzony)
                 self.post("fatal", t("all_done"))
                 return
             self.post("chunk", start, bits)
             size0 = os.path.getsize(out) if os.path.exists(out) else 0
-            cmd = [exe, "-o", out, "-start", f"{start:X}", "-range", str(bits), "-m", "1048576", cfg["addr"]]
+            cmd = [exe, "-o", out, "-start", f"{start:X}", "-range", str(bits), "-m", "1048576"]
+            cmd += ["-i", cfg["addr_file"]] if cfg["addr_file"] else [cfg["addrs"][0]]
             t0 = time.time()
             try:
                 self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -550,7 +712,7 @@ class App:
                 ev.wait(10)
                 continue
             fails = 0
-            checked.add((start, bits))
+            checked.add((key, bits))
             core.save_db(checked, cfg["db"])
             self.post("done", start, bits, elapsed, set(checked))
 
@@ -600,21 +762,29 @@ class App:
             return
         try:
             snap = self.snap
-            n, src = int(snap["puzzle"]), snap["source"]
-            addr = pz.ADDRESSES[n]
+            tgt, src = snap["tgt"], snap["source"]
+            if not tgt:
+                return
+            addrs = tgt["addrs"]
+            if src in API_ADDR_LIMIT and len(addrs) > API_ADDR_LIMIT[src]:
+                self.post("log", self.t("bal_skip", n=len(addrs), src=self.src_name(src)), "warn")
+                return
             self.post("bal_start", src)
             t0 = time.time()
             try:
                 if src == "node":
-                    conf, pend = balances_node([addr], snap["bitcoin_cli"], snap["datadir"])[addr], None
+                    conf, pend = sum(balances_node(addrs, snap["bitcoin_cli"], snap["datadir"]).values()), None
                 elif src == "blockchain":
-                    conf, pend = balances_blockchain([addr])[addr], None
+                    conf, pend = sum(balances_blockchain(addrs).values()), None
                 else:
-                    conf, pend = balance_mempool(addr)
+                    conf = pend = 0.0
+                    for a in addrs:
+                        c, m = balance_mempool(a)
+                        conf, pend = conf + c, pend + m
             except Exception as e:  # noqa: BLE001  (sieć, węzeł, zły JSON - wszystko tylko raportujemy)
                 self.post("bal_err", src, str(e))
                 return
-            self.post("balance", n, src, conf, pend, time.time() - t0)
+            self.post("balance", tgt, src, conf, pend, time.time() - t0)
         finally:
             self.balance_lock.release()
 
@@ -696,19 +866,21 @@ class App:
         self.l_bal_info.configure(text=self.t("bal_err_short", src=self.src_name(src)), fg=RED)
         self.log(self.t("log_bal_err", src=self.src_name(src), e=err), "err")
 
-    def _ev_balance(self, n, src, conf, pend, secs):
+    def _ev_balance(self, tgt, src, conf, pend, secs):
         self.btn_check.configure(state="normal", text=self.t("btn_check"))
-        if n != self.puzzle:      # wynik dla zagadki, którą w międzyczasie zmieniono
+        cur = self.snap.get("tgt")
+        if not cur or tgt["id"] != cur["id"]:      # wynik dla celu, który w międzyczasie zmieniono
             return
+        n = tgt["n"] or self.t("custom_title")
         now = datetime.now().strftime("%H:%M:%S")
         extra = f"   ·   {self.t('in_mempool')} {pend:+.8f}" if pend else ""
         self.l_balance.configure(text=f"{conf:.8f} BTC", fg=ACCENT if conf > 0 else RED)
         self.l_bal_info.configure(text=f"{self.src_name(src)}   ·   {now}   ·   {secs:.0f} s{extra}", fg=MUTED)
         effective = conf + (pend or 0)
-        self.log(self.t("log_bal", n=n, v=f"{conf:.8f}", x=extra, src=self.src_name(src)),
-                 "ok" if effective > 0 else "err")
+        self.log(self.t("log_bal" if tgt["n"] else "log_bal_custom", n=n, v=f"{conf:.8f}", x=extra,
+                        src=self.src_name(src)), "ok" if effective > 0 else "err")
         if effective <= 0:
-            why = self.t("spending") if conf > 0 else self.t("empty", n=n)
+            why = self.t("spending") if conf > 0 else (self.t("empty", n=n) if tgt["n"] else self.t("empty_custom"))
             if self.running:
                 self.stop(f"{why} {self.t('search_stopped')}")
             self._set_state("solved")
@@ -724,7 +896,7 @@ class App:
         if gone:
             msg += " " + self.t("log_list_new", l=", ".join("#" + str(g) for g in gone))
         self.log(msg, "ok")
-        if self.puzzle not in unsolved:
+        if self.settings["mode"] == "builtin" and self.puzzle not in unsolved:
             self.l_hint.configure(text=self.t("hint_solved", n=self.puzzle), fg=RED)
 
     def _ev_list_err(self, err):
